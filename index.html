@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Сімейний бюджет</title>
+
+<style>
+:root {
+  --ink:#10233f;
+  --muted:#64748b;
+  --line:#e2e8f0;
+  --blue:#2563eb;
+  --bg:#f4f7fb;
+}
+* { box-sizing:border-box }
+body {
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:Inter,system-ui,sans-serif;
+}
+button,input,select { font:inherit }
+main { max-width:1220px;margin:auto;padding:38px 28px 70px }
+header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:26px;
+}
+h1 { font-size:36px;margin:4px 0 }
+h2 { font-size:20px;margin:0 0 4px }
+h3 { font-size:14px;margin:25px 0 12px }
+p { color:var(--muted);margin:0 }
+.eyebrow {
+  font-size:11px;
+  color:var(--blue);
+  font-weight:800;
+  letter-spacing:1.5px;
+}
+.primary {
+  border:0;
+  background:var(--blue);
+  color:white;
+  border-radius:12px;
+  padding:12px 17px;
+  font-weight:700;
+  cursor:pointer;
+}
+.cards {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:18px;
+  margin-bottom:18px;
+}
+.cards article,.panel {
+  background:white;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:22px;
+  box-shadow:0 8px 30px #1831530b;
+}
+.cards article {
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+.cards small { color:var(--muted);font-weight:650 }
+.cards strong { font-size:27px }
+.cards span { font-size:12px;color:var(--muted) }
+.cards .accent {
+  background:linear-gradient(135deg,#153a75,#2563eb);
+  color:white;
+  border:0;
+}
+.cards .accent small,.cards .accent span { color:#dbeafe }
+.grid {
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:18px;
+  margin-bottom:18px;
+}
+.panel-title {
+  display:flex;
+  justify-content:space-between;
+}
+.panel-title input { width:145px }
+.income-inputs {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:22px;
+}
+.panel label {
+  font-size:12px;
+  color:var(--muted);
+  font-weight:650;
+}
+.panel input,.panel select {
+  display:block;
+  width:100%;
+  margin-top:6px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  padding:10px;
+  background:white;
+}
+.expense {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-top:1px solid #edf1f5;
+  padding:8px 0;
+}
+.expense span,.legend span {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.expense i,.legend i {
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  display:inline-block;
+}
+.expense-value {
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.expense-value input { width:120px }
+.expense-value span {
+  color:var(--muted);
+  font-weight:700;
+}
+.expense input {
+  width:130px;
+  margin:0;
+  text-align:right;
+}
+.donut-wrap {
+  height:260px;
+  position:relative;
+  display:grid;
+  place-items:center;
+}
+.donut {
+  width:210px;
+  height:210px;
+  border-radius:50%;
+  position:relative;
+}
+.donut::after {
+  content:"";
+  position:absolute;
+  inset:52px;
+  background:white;
+  border-radius:50%;
+}
+.donut-center {
+  position:absolute;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.donut-center span { font-size:12px;color:var(--muted) }
+.legend {
+  display:flex;
+  gap:9px 14px;
+  flex-wrap:wrap;
+  color:var(--muted);
+  font-size:12px;
+}
+.lower { grid-template-columns:.85fr 1.15fr }
+.lower form {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:13px;
+  margin-top:18px;
+}
+.lower form .wide,.lower form button { grid-column:1/-1 }
+.transaction {
+  display:grid;
+  grid-template-columns:1fr auto 30px;
+  align-items:center;
+  gap:12px;
+  padding:12px 0;
+  border-top:1px solid #edf1f5;
+}
+.transaction span {
+  display:flex;
+  flex-direction:column;
+}
+.transaction small {
+  font-size:11px;
+  color:var(--muted);
+}
+.transaction strong.income { color:#059669 }
+.transaction button {
+  border:0;
+  background:transparent;
+  color:#94a3b8;
+  font-size:22px;
+  cursor:pointer;
+}
+#notice {
+  padding:11px 14px;
+  background:#e0f2fe;
+  color:#075985;
+  border-radius:10px;
+  margin-bottom:15px;
+}
+@media(max-width:800px) {
+  main { padding:24px 15px }
+  .cards,.grid,.income-inputs,.lower form {
+    grid-template-columns:1fr;
+  }
+  header {
+    align-items:flex-start;
+    gap:16px;
+    flex-direction:column;
+  }
+  header .primary { width:100% }
+}
+</style>
+</head>
+
+<body>
+<main>
+<header>
+  <div>
+    <span class="eyebrow">СІМЕЙНИЙ ФІНАНСОВИЙ КАБІНЕТ</span>
+    <h1>Бюджет родини</h1>
+    <p>Планування доходів, витрат і заощаджень.</p>
+  </div>
+  <button id="sync" class="primary">☁ Зберегти</button>
+</header>
+
+<div id="notice" hidden></div>
+
+<section class="cards">
+  <article>
+    <small>Дохід за планом</small>
+    <strong id="incomeKpi"></strong>
+    <span>Зарплата + премія</span>
+  </article>
+
+  <article>
+    <small>Планові витрати</small>
+    <strong id="expenseKpi"></strong>
+    <span id="actualKpi"></span>
+  </article>
+
+  <article class="accent">
+    <small>Очікувані заощадження</small>
+    <strong id="savingsKpi"></strong>
+    <span>Після податку 1,5%</span>
+  </article>
+</section>
+
+<section class="grid">
+  <article class="panel">
+    <div class="panel-title">
+      <div>
+        <h2>План на місяць</h2>
+        <p>Розрахунки відповідають Excel</p>
+      </div>
+      <input id="month" type="month">
+    </div>
+
+    <div class="income-inputs">
+      <label>Зарплата
+        <input id="salary" type="number">
+      </label>
+      <label>Премія з 100-ки
+        <input id="days3333" type="number">
+      </label>
+      <label>Премія з 30-ки
+        <input id="days1000" type="number">
+      </label>
+    </div>
+
+    <h3>Загальні витрати</h3>
+    <div id="expenseInputs"></div>
+  </article>
+
+  <article class="panel">
+    <h2>Структура бюджету</h2>
+    <p>Розподіл планових витрат</p>
+
+    <div class="donut-wrap">
+      <div id="donut" class="donut"></div>
+      <div class="donut-center">
+        <b id="donutTotal"></b>
+        <span>разом</span>
+      </div>
+    </div>
+
+    <div id="legend" class="legend"></div>
+  </article>
+</section>
+
+<section class="grid lower">
+  <article class="panel">
+    <h2>Додати операцію</h2>
+
+    <form id="txForm">
+      <label>Дата
+        <input id="date" type="date" required>
+      </label>
+
+      <label>Тип
+        <select id="type">
+          <option value="expense">Витрата</option>
+          <option value="income">Дохід</option>
+        </select>
+      </label>
+
+      <label>Категорія
+        <select id="category"></select>
+      </label>
+
+      <label>Сума
+        <input id="amount" type="number" min="0.01" step="0.01" required>
+      </label>
+
+      <label>Учасник
+        <input id="member" value="Михайло" required>
+      </label>
+
+      <label class="wide">Коментар
+        <input id="note">
+      </label>
+
+      <button class="primary" type="submit">＋ Додати</button>
+    </form>
+  </article>
+
+  <article class="panel">
+    <h2>Останні операції</h2>
+    <div id="transactions"></div>
+  </article>
+</section>
+</main>
+
+<script>
+const categories = [
+  "Квартира","Продукти","Проїзд","Підписки",
+  "Розваги","Кредитка","Інше"
+];
+
+const colors = [
+  "#2563eb","#14b8a6","#f59e0b","#8b5cf6",
+  "#ec4899","#ef4444","#64748b"
+];
+
+const initial = {
+  plan: {
+    month:"2026-08",
+    salary:21400,
+    days3333:5,
+    days1000:25,
+    taxRate:0.015,
+    expenses:{
+      "Квартира":8100,
+      "Продукти":10000,
+      "Проїзд":3000,
+      "Підписки":2025,
+      "Розваги":0,
+      "Кредитка":2000,
+      "Інше":1000
+    }
+  },
+  transactions:[
+    {
+      id:"1",date:"2026-08-01",type:"expense",
+      category:"Квартира",amount:8100,member:"Михайло"
+    },
+    {
+      id:"2",date:"2026-08-03",type:"expense",
+      category:"Продукти",amount:2450,member:"Сім’я"
+    },
+    {
+      id:"3",date:"2026-08-08",type:"income",
+      category:"Зарплата",amount:21400,member:"Михайло"
+    }
+  ]
+};
+
+let state = JSON.parse(localStorage.getItem("family-budget") || "null")
+  || structuredClone(initial);
+
+const $ = id => document.getElementById(id);
+
+const money = number => new Intl.NumberFormat("uk-UA", {
+  style:"currency",
+  currency:"UAH",
+  maximumFractionDigits:2
+}).format(number);
+
+function save() {
+  localStorage.setItem("family-budget", JSON.stringify(state));
+}
+
+function fillCategories() {
+  const list = $("type").value === "income"
+    ? ["Зарплата","Премія","Інше"]
+    : categories;
+
+  $("category").innerHTML = list
+    .map(item => `<option>${item}</option>`)
+    .join("");
+}
+
+function syncDayInputs(changedId) {
+  let days3333 = Math.max(0, Number($("days3333").value) || 0);
+  let days1000 = Math.max(0, Number($("days1000").value) || 0);
+
+  if (changedId === "days3333") {
+    days3333 = Math.min(30, days3333);
+    days1000 = 30 - days3333;
+  } else if (changedId === "days1000") {
+    days1000 = Math.min(30, days1000);
+    days3333 = 30 - days1000;
+  } else {
+    days3333 = Math.min(30, days3333);
+    days1000 = Math.min(30 - days3333, days1000);
+  }
+
+  $("days3333").value = days3333;
+  $("days1000").value = days1000;
+  $("days3333").max = 30 - days1000;
+  $("days1000").max = 30 - days3333;
+
+  state.plan.days3333 = days3333;
+  state.plan.days1000 = days1000;
+}
+
+function calculate() {
+  const plan = state.plan;
+
+  const bonus =
+    plan.days3333 * 3333 +
+    plan.days1000 * 1000;
+
+  const expenses = Object.values(plan.expenses)
+    .reduce((sum,value) => sum + value, 0);
+
+  const savings =
+    plan.salary +
+    bonus * (1 - plan.taxRate) -
+    expenses;
+
+  const actual = state.transactions
+    .filter(item => item.type === "expense")
+    .reduce((sum,item) => sum + item.amount, 0);
+
+  $("incomeKpi").textContent = money(plan.salary + bonus);
+  $("expenseKpi").textContent = money(expenses);
+  $("actualKpi").textContent = `Розхідні витрати: ${money(actual)}`;
+  $("savingsKpi").textContent = money(savings);
+  $("donutTotal").textContent = money(expenses);
+
+  const active = categories
+    .map((category,index) => ({
+      category,
+      index,
+      value:plan.expenses[category] || 0
+    }))
+    .filter(item => item.value > 0);
+
+  let angle = 0;
+
+  const parts = active.map(item => {
+    const start = angle;
+    angle += item.value / expenses * 360;
+    return `${colors[item.index]} ${start}deg ${angle}deg`;
+  });
+
+  $("donut").style.background =
+    `conic-gradient(${parts.join(",")})`;
+
+  $("legend").innerHTML = active.map(item => `
+    <span>
+      <i style="background:${colors[item.index]}"></i>
+      ${item.category}
+    </span>
+  `).join("");
+}
+
+function renderTransactions() {
+  $("transactions").innerHTML = state.transactions
+    .slice(0,8)
+    .map(item => `
+      <div class="transaction">
+        <span>
+          <b>${item.category}</b>
+          <small>${item.date} · ${item.member}</small>
+        </span>
+
+        <strong class="${item.type}">
+          ${item.type === "expense" ? "−" : "+"}${money(item.amount)}
+        </strong>
+
+        <button data-id="${item.id}" aria-label="Видалити">×</button>
+      </div>
+    `).join("");
+
+  document.querySelectorAll("[data-id]").forEach(button => {
+    button.onclick = () => {
+      state.transactions = state.transactions
+        .filter(item => item.id !== button.dataset.id);
+
+      save();
+      render();
+    };
+  });
+}
+
+function render() {
+  const plan = state.plan;
+
+  $("month").value = plan.month;
+  $("salary").value = plan.salary;
+  $("days3333").value = plan.days3333;
+  $("days1000").value = plan.days1000;
+  syncDayInputs();
+
+  $("expenseInputs").innerHTML = categories.map((category,index) => `
+    <div class="expense">
+      <span>
+        <i style="background:${colors[index]}"></i>
+        ${category}
+      </span>
+
+      <div class="expense-value">
+        <input
+          data-expense="${category}"
+          type="number"
+          value="${plan.expenses[category] || 0}">
+        <span>₴</span>
+      </div>
+    </div>
+  `).join("");
+
+  document.querySelectorAll("[data-expense]").forEach(input => {
+    input.oninput = () => {
+      plan.expenses[input.dataset.expense] =
+        Number(input.value) || 0;
+
+      save();
+      calculate();
+    };
+  });
+
+  calculate();
+  renderTransactions();
+}
+
+[
+  ["month","month"],
+  ["salary","salary"],
+  ["days3333","days3333"],
+  ["days1000","days1000"]
+].forEach(([id,key]) => {
+  $(id).oninput = event => {
+    if (key === "month") {
+      state.plan[key] = event.target.value;
+    } else if (key === "days3333" || key === "days1000") {
+      syncDayInputs(id);
+    } else {
+      state.plan[key] = Number(event.target.value) || 0;
+    }
+
+    save();
+    calculate();
+  };
+});
+
+$("type").onchange = fillCategories;
+$("date").value = new Date().toISOString().slice(0,10);
+
+$("txForm").onsubmit = event => {
+  event.preventDefault();
+
+  state.transactions.unshift({
+    id:crypto.randomUUID(),
+    date:$("date").value,
+    type:$("type").value,
+    category:$("category").value,
+    amount:Number($("amount").value),
+    member:$("member").value,
+    note:$("note").value
+  });
+
+  $("amount").value = "";
+  $("note").value = "";
+
+  save();
+  render();
+};
+
+$("sync").onclick = () => {
+  save();
+  $("notice").hidden = false;
+  $("notice").textContent =
+    "Дані успішно збережено у цьому браузері.";
+};
+
+fillCategories();
+render();
+</script>
+</body>
+</html>
