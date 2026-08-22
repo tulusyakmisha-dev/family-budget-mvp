@@ -147,6 +147,7 @@ p { color:var(--muted);margin:0 }
 }
 .panel-title input { width:145px }
 .panel-title input[type="month"] { cursor:pointer }
+.panel input[type="date"] { cursor:pointer }
 .income-inputs {
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -856,14 +857,18 @@ function exportExcel() {
 $("type").onchange = fillCategories;
 $("date").value = new Date().toISOString().slice(0,10);
 
-$("month").addEventListener("pointerdown", event => {
-  const monthInput = $("month");
-  event.preventDefault();
-  monthInput.focus();
-  if (typeof monthInput.showPicker === "function") {
-    monthInput.showPicker();
-  }
-});
+function openPickerOnPointerDown(input) {
+  input.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    input.focus();
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+    }
+  });
+}
+
+openPickerOnPointerDown($("month"));
+openPickerOnPointerDown($("date"));
 
 $("importExcel").onclick = () => $("excelFile").click();
 $("excelFile").onchange = async event => {
