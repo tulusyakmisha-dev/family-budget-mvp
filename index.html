@@ -424,6 +424,44 @@ const money = number => new Intl.NumberFormat("uk-UA", {
   maximumFractionDigits:2
 }).format(number);
 
+const monthNames = [
+  "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
+  "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
+];
+
+function emptyExpenses() {
+  return Object.fromEntries(categories.map(category => [category, 0]));
+}
+
+function currentPlan() {
+  if (!state.plan.months) {
+    state.plan.months = {
+      [state.plan.month]: {
+        salary:state.plan.salary,
+        days3333:state.plan.days3333,
+        days1000:state.plan.days1000,
+        expenses:{ ...state.plan.expenses }
+      }
+    };
+  }
+  if (!state.plan.months[state.plan.month]) {
+    state.plan.months[state.plan.month] = {
+      salary:state.plan.salary || 0,
+      days3333:state.plan.days3333 || 0,
+      days1000:state.plan.days1000 || 0,
+      expenses:emptyExpenses()
+    };
+  }
+  return state.plan.months[state.plan.month];
+}
+
+function syncLegacyPlan(plan) {
+  state.plan.salary = plan.salary;
+  state.plan.days3333 = plan.days3333;
+  state.plan.days1000 = plan.days1000;
+  state.plan.expenses = plan.expenses;
+}
+
 async function save() {
   localStorage.setItem("family-budget", JSON.stringify(state));
 
@@ -495,12 +533,15 @@ function syncDayInputs(changedId) {
   $("days3333").max = 30 - days1000;
   $("days1000").max = 30 - days3333;
 
-  state.plan.days3333 = days3333;
-  state.plan.days1000 = days1000;
+  const plan = currentPlan();
+  plan.days3333 = days3333;
+  plan.days1000 = days1000;
+  syncLegacyPlan(plan);
 }
 
 function calculate() {
-  const plan = state.plan;
+  const plan = currentPlan();
+  syncLegacyPlan(plan);
 
   const bonus =
     plan.days3333 * 3333 +
@@ -581,7 +622,8 @@ function renderTransactions() {
 }
 
 function render() {
-  const plan = state.plan;
+  const plan = currentPlan();
+  syncLegacyPlan(plan);
 
   $("month").value = plan.month;
   $("salary").value = plan.salary;
@@ -608,7 +650,7 @@ function render() {
 
   document.querySelectorAll("[data-expense]").forEach(input => {
     input.oninput = () => {
-      plan.expenses[input.dataset.expense] =
+      currentPlan().expenses[input.dataset.expense] =
         Number(input.value) || 0;
 
       persist();
@@ -648,31 +690,37 @@ async function importExcel(file) {
     throw new Error("Не знайдено таблицю помісячних витрат.");
   }
 
-  const monthName = monthColumns[state.plan.month.slice(5)];
   const header = rows[headerIndex];
-  const monthIndex = header.findIndex(value => value === monthName);
-  if (monthIndex < 0) {
-    throw new Error(`У файлі немає колонки «${monthName}».`);
-  }
+  const salaryRows = rows.filter(row => Number(row[3]) > 0 && Number(row[5]) >= 0);
+  const importedMonths = {};
 
-  const importedExpenses = {};
-  rows.slice(headerIndex + 1).forEach(row => {
-    const category = String(row[13] || "").trim();
-    if (categories.includes(category)) {
-      importedExpenses[category] = Number(row[monthIndex]) || 0;
-    }
+  monthNames.forEach((monthName, monthIndex) => {
+    const excelIndex = header.findIndex(value => value === monthName);
+    if (excelIndex < 0) return;
+    const salaryRow = salaryRows[monthIndex] || salaryRows[0] || [];
+    const expenses = emptyExpenses();
+    rows.slice(headerIndex + 1).forEach(row => {
+      const category = String(row[13] || "").trim();
+      if (categories.includes(category)) {
+        expenses[category] = Number(row[excelIndex]) || 0;
+      }
+    });
+    importedMonths[`2026-${String(monthIndex + 1).padStart(2, "0")}`] = {
+      salary:Number(salaryRow[3]) || 0,
+      days3333:Number(salaryRow[5]) || 0,
+      days1000:Number(salaryRow[6]) || 0,
+      expenses
+    };
   });
 
-  const salaryRow = rows.find(row => Number(row[3]) > 0 && Number(row[5]) >= 0);
-  if (salaryRow) {
-    state.plan.salary = Number(salaryRow[3]) || state.plan.salary;
-    state.plan.days3333 = Number(salaryRow[5]) || 0;
-    state.plan.days1000 = Number(salaryRow[6]) || 0;
+  if (!Object.keys(importedMonths).length) {
+    throw new Error("У файлі немає колонок із місяцями.");
   }
-  state.plan.expenses = { ...state.plan.expenses, ...importedExpenses };
+  state.plan.months = { ...state.plan.months, ...importedMonths };
+  syncLegacyPlan(currentPlan());
   persist();
   render();
-  showNotice(`Excel імпортовано: ${Object.keys(importedExpenses).length} категорій за ${monthName}.`);
+  showNotice(`Excel імпортовано: ${Object.keys(importedMonths).length} місяців.`);
 }
 
 function exportExcel() {
@@ -683,20 +731,28 @@ function exportExcel() {
       item.category, item.amount, item.member, item.note || ""
     ])
   ];
-  const plan = [
-    ["Місяць", state.plan.month],
-    ["Зарплата", state.plan.salary],
-    ["Дні премії 3333", state.plan.days3333],
-    ["Дні премії 1000", state.plan.days1000],
-    [], ["Категорія", "Сума"]
-  ];
-  categories.forEach(category => plan.push([
-    category, state.plan.expenses[category] || 0
-  ]));
+  const report = [[
+    "Місяць", "Зарплата", "Дні × 3 333", "Дні × 1 000",
+    ...categories, "Витрати разом", "Заощадження"
+  ]];
+  monthNames.forEach((monthName, index) => {
+    const month = `2026-${String(index + 1).padStart(2, "0")}`;
+    const plan = state.plan.months?.[month] || {
+      salary:0, days3333:0, days1000:0, expenses:emptyExpenses()
+    };
+    const expenses = categories.map(category => plan.expenses[category] || 0);
+    const total = expenses.reduce((sum, value) => sum + value, 0);
+    const bonus = plan.days3333 * 3333 + plan.days1000 * 1000;
+    report.push([
+      monthName, plan.salary, plan.days3333, plan.days1000,
+      ...expenses, total,
+      plan.salary + bonus * 0.985 - total
+    ]);
+  });
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(operations), "Операції");
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(plan), "План");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(report), "Звіт 2026");
   XLSX.writeFile(workbook, `сімейний-бюджет-${state.plan.month}.xlsx`);
   showNotice("Дані бази експортовано в Excel.");
 }
@@ -710,10 +766,15 @@ function exportExcel() {
   $(id).oninput = event => {
     if (key === "month") {
       state.plan[key] = event.target.value;
+      currentPlan();
+      persist();
+      render();
+      return;
     } else if (key === "days3333" || key === "days1000") {
       syncDayInputs(id);
     } else {
-      state.plan[key] = Number(event.target.value) || 0;
+      currentPlan()[key] = Number(event.target.value) || 0;
+      syncLegacyPlan(currentPlan());
     }
 
     persist();
