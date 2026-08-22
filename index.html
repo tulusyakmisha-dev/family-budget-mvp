@@ -147,7 +147,15 @@ p { color:var(--muted);margin:0 }
 }
 .panel-title input { width:145px }
 .panel-title input[type="month"] { cursor:pointer }
-.panel input[type="date"] { cursor:pointer }
+.panel-title input[type="month"] {
+  user-select:none;
+  -webkit-user-select:none;
+}
+.panel input[type="date"] {
+  cursor:pointer;
+  user-select:none;
+  -webkit-user-select:none;
+}
 .income-inputs {
   display:grid;
   grid-template-columns:repeat(3,1fr);
