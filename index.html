@@ -151,6 +151,15 @@ p { color:var(--muted);margin:0 }
   user-select:none;
   -webkit-user-select:none;
 }
+.calendar-field {
+  display:block;
+  position:relative;
+  cursor:pointer;
+}
+.panel-title .calendar-field { width:145px }
+.calendar-field input {
+  pointer-events:none;
+}
 .panel input[type="date"] {
   cursor:pointer;
   user-select:none;
@@ -352,7 +361,9 @@ p { color:var(--muted);margin:0 }
         <h2>План на місяць</h2>
         <p>Розрахунки відповідають Excel</p>
       </div>
-      <input id="month" type="month" aria-label="Місяць">
+      <span class="calendar-field">
+        <input id="month" type="month" aria-label="Місяць">
+      </span>
     </div>
 
     <div class="income-inputs">
@@ -393,7 +404,9 @@ p { color:var(--muted);margin:0 }
 
     <form id="txForm">
       <label>Дата
-        <input id="date" type="date" required>
+        <span class="calendar-field">
+          <input id="date" type="date" required>
+        </span>
       </label>
 
       <label>Тип
@@ -865,8 +878,9 @@ function exportExcel() {
 $("type").onchange = fillCategories;
 $("date").value = new Date().toISOString().slice(0,10);
 
-function openPickerOnPointerDown(input) {
-  input.addEventListener("pointerdown", event => {
+function openPickerOnPointerDown(field) {
+  const input = field.querySelector("input");
+  field.addEventListener("pointerdown", event => {
     event.preventDefault();
     input.focus();
     if (typeof input.showPicker === "function") {
@@ -875,8 +889,8 @@ function openPickerOnPointerDown(input) {
   });
 }
 
-openPickerOnPointerDown($("month"));
-openPickerOnPointerDown($("date"));
+openPickerOnPointerDown($("month").parentElement);
+openPickerOnPointerDown($("date").parentElement);
 
 $("importExcel").onclick = () => $("excelFile").click();
 $("excelFile").onchange = async event => {
