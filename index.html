@@ -93,7 +93,7 @@ p { color:var(--muted);margin:0 }
   display:flex;
   justify-content:space-between;
 }
-.panel-title select { width:145px }
+.panel-title input { width:145px }
 .income-inputs {
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -281,7 +281,7 @@ p { color:var(--muted);margin:0 }
         <h2>План на місяць</h2>
         <p>Розрахунки відповідають Excel</p>
       </div>
-      <select id="month" aria-label="Місяць"></select>
+      <input id="month" type="month" aria-label="Місяць">
     </div>
 
     <div class="income-inputs">
@@ -512,13 +512,6 @@ function fillCategories() {
   $("category").innerHTML = list
     .map(item => `<option>${item}</option>`)
     .join("");
-}
-
-function fillMonths() {
-  $("month").innerHTML = monthNames.map((name, index) => {
-    const value = `2026-${String(index + 1).padStart(2, "0")}`;
-    return `<option value="${value}">${name} 2026</option>`;
-  }).join("");
 }
 
 function syncDayInputs(changedId) {
@@ -850,7 +843,6 @@ $("sync").onclick = async () => {
   }
 };
 
-fillMonths();
 fillCategories();
 render();
 loadState().catch(error => {
