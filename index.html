@@ -349,7 +349,7 @@ p { color:var(--muted);margin:0 }
   <div class="file-actions">
     <button id="sync" class="primary">☁ Зберегти</button>
     <button id="importExcel" type="button">Імпорт Excel</button>
-    <button id="exportExcel" type="button">Оновити Excel-звіт</button>
+    <button id="exportExcel" type="button">Оновити мій Excel-файл</button>
     <input id="excelFile" type="file" accept=".xlsx,.xls" hidden>
   </div>
 </header>
@@ -851,7 +851,9 @@ async function importExcel(file) {
   showNotice(`Excel імпортовано: ${Object.keys(importedMonths).length} місяців.`);
 }
 
-function exportExcel() {
+let excelFileHandle = null;
+
+async function exportExcel() {
   const operationHeader = [
     "ID", "Дата", "Тип", "Категорія", "Сума", "Учасник", "Коментар"
   ];
@@ -958,8 +960,34 @@ function exportExcel() {
     workbook, XLSX.utils.aoa_to_sheet(archivedOperations), "Архів операцій"
   );
   XLSX.utils.book_append_sheet(workbook, reportSheet, "Звіт 2026");
+  if (window.showOpenFilePicker) {
+    try {
+      if (!excelFileHandle) {
+        [excelFileHandle] = await window.showOpenFilePicker({
+          types:[{
+            description:"Excel-файл",
+            accept:{
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":[".xlsx"]
+            }
+          }],
+          multiple:false
+        });
+      }
+      const writable = await excelFileHandle.createWritable();
+      await writable.write(XLSX.write(workbook, { bookType:"xlsx", type:"array" }));
+      await writable.close();
+      showNotice("Цей Excel-файл оновлено даними із сайту.");
+      return;
+    } catch (error) {
+      if (error.name === "AbortError") return;
+      excelFileHandle = null;
+      showNotice(`Не вдалося оновити Excel-файл: ${error.message}`, true);
+      return;
+    }
+  }
+
   XLSX.writeFile(workbook, `Витрати-${state.plan.month.slice(0,4)}.xlsx`);
-  showNotice("Excel-звіт оновлено актуальними даними із сайту.");
+  showNotice("Ваш браузер не дозволяє змінити файл напряму, тому завантажено резервну копію.");
 }
 
 [
