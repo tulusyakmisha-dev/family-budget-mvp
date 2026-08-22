@@ -256,9 +256,9 @@ p { color:var(--muted);margin:0 }
 
 <section class="cards">
   <article>
-    <small>Дохід за планом</small>
+    <small>Загальний дохід</small>
     <strong id="incomeKpi"></strong>
-    <span>Зарплата + премія</span>
+    <span id="incomeBreakdown"></span>
   </article>
 
   <article>
@@ -560,6 +560,8 @@ function calculate() {
     .reduce((sum,item) => sum + item.amount, 0);
 
   $("incomeKpi").textContent = money(plan.salary + bonus);
+  $("incomeBreakdown").textContent =
+    `Зарплата: ${money(plan.salary)} · Премія: ${money(bonus)}`;
   $("expenseKpi").textContent = money(expenses);
   $("actualKpi").textContent = `Розхідні витрати: ${money(actual)}`;
   $("savingsKpi").textContent = money(savings);
