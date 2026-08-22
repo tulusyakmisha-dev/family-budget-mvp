@@ -262,7 +262,7 @@ p { color:var(--muted);margin:0 }
   </article>
 
   <article>
-    <small>Планові витрати</small>
+    <small>Загальні витрати</small>
     <strong id="expenseKpi"></strong>
     <span id="actualKpi"></span>
   </article>
@@ -296,7 +296,7 @@ p { color:var(--muted);margin:0 }
       </label>
     </div>
 
-    <h3>Загальні витрати</h3>
+    <h3>Постійні витрати</h3>
     <div id="expenseInputs"></div>
   </article>
 
@@ -558,20 +558,24 @@ function calculate() {
   const expenses = Object.values(plan.expenses)
     .reduce((sum,value) => sum + value, 0);
 
+  const variableExpenses = state.transactions
+    .filter(item => item.type === "expense" &&
+      item.date.startsWith(state.plan.month))
+    .reduce((sum,item) => sum + item.amount, 0);
+
+  const totalExpenses = expenses + variableExpenses;
+
   const savings =
     plan.salary +
     bonus * (1 - (state.plan.taxRate || 0.015)) -
-    expenses;
-
-  const actual = state.transactions
-    .filter(item => item.type === "expense")
-    .reduce((sum,item) => sum + item.amount, 0);
+    totalExpenses;
 
   $("incomeKpi").textContent = money(plan.salary + bonus);
   $("incomeBreakdown").textContent =
     `Зарплата: ${money(plan.salary)} · Премія: ${money(bonus)}`;
-  $("expenseKpi").textContent = money(expenses);
-  $("actualKpi").textContent = `Розхідні витрати: ${money(actual)}`;
+  $("expenseKpi").textContent = money(totalExpenses);
+  $("actualKpi").textContent =
+    `Постійні: ${money(expenses)} · Розхідні: ${money(variableExpenses)}`;
   $("savingsKpi").textContent = money(savings);
   $("donutTotal").textContent = money(expenses);
 
