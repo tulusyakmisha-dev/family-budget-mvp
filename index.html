@@ -845,16 +845,25 @@ async function importExcel(file) {
 }
 
 function exportExcel() {
-  const operations = [
-    ["ID", "Дата", "Тип", "Категорія", "Сума", "Учасник", "Коментар"],
-    ...state.transactions.map(item => [
+  const operationHeader = [
+    "ID", "Дата", "Тип", "Категорія", "Сума", "Учасник", "Коментар"
+  ];
+  const operationRows = [...state.transactions]
+    .sort((first, second) => second.date.localeCompare(first.date))
+    .map(item => [
       item.id, item.date, item.type === "expense" ? "Витрата" : "Дохід",
       item.category, item.amount, item.member, item.note || ""
-    ])
+    ]);
+  const latestOperations = [operationHeader, ...operationRows.slice(0, 8)];
+  const archivedOperations = [
+    ["Архів операцій", "Усі записи з вебдодатку"],
+    [],
+    operationHeader,
+    ...operationRows
   ];
   const report = [[
     "Місяць", "Зарплата", "Дні × 3 333", "Дні × 1 000",
-    ...categories, "Витрати разом", "Заощадження"
+    ...categories, "Розхідні витрати", "Витрати разом", "Заощадження"
   ]];
   monthNames.forEach((monthName, index) => {
     const month = `2026-${String(index + 1).padStart(2, "0")}`;
@@ -862,19 +871,28 @@ function exportExcel() {
       salary:0, days3333:0, days1000:0, expenses:emptyExpenses()
     };
     const expenses = categories.map(category => plan.expenses[category] || 0);
-    const total = expenses.reduce((sum, value) => sum + value, 0);
+    const fixedTotal = expenses.reduce((sum, value) => sum + value, 0);
+    const variableTotal = state.transactions
+      .filter(item => item.type === "expense" && item.date.startsWith(month))
+      .reduce((sum, item) => sum + item.amount, 0);
+    const total = fixedTotal + variableTotal;
     const bonus = plan.days3333 * 3333 + plan.days1000 * 1000;
     report.push([
       monthName, plan.salary, plan.days3333, plan.days1000,
-      ...expenses, total,
+      ...expenses, variableTotal, total,
       plan.salary + bonus * 0.985 - total
     ]);
   });
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(operations), "Операції");
+  XLSX.utils.book_append_sheet(
+    workbook, XLSX.utils.aoa_to_sheet(latestOperations), "Останні операції"
+  );
+  XLSX.utils.book_append_sheet(
+    workbook, XLSX.utils.aoa_to_sheet(archivedOperations), "Архів операцій"
+  );
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(report), "Звіт 2026");
-  XLSX.writeFile(workbook, `сімейний-бюджет-${state.plan.month}.xlsx`);
+  XLSX.writeFile(workbook, `Витрати-${state.plan.month.slice(0,4)}.xlsx`);
   showNotice("Дані бази експортовано в Excel.");
 }
 
