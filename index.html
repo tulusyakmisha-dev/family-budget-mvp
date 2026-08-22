@@ -158,7 +158,23 @@ p { color:var(--muted);margin:0 }
 }
 .panel-title .calendar-field { width:145px }
 .calendar-field input {
-  pointer-events:none;
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  opacity:0;
+  cursor:pointer;
+}
+.calendar-label {
+  display:block;
+  padding:10px;
+  border:1px solid #7f9db766;
+  border-radius:11px;
+  background:#ffffff59;
+  box-shadow:inset 0 1px #ffffffc7, 0 3px 12px #244b6614;
+  color:var(--ink);
+  user-select:none;
+  -webkit-user-select:none;
 }
 .panel input[type="date"] {
   cursor:pointer;
@@ -362,6 +378,7 @@ p { color:var(--muted);margin:0 }
         <p>Розрахунки відповідають Excel</p>
       </div>
       <span class="calendar-field">
+        <span id="monthLabel" class="calendar-label">Серпень 2026</span>
         <input id="month" type="month" aria-label="Місяць">
       </span>
     </div>
@@ -405,6 +422,7 @@ p { color:var(--muted);margin:0 }
     <form id="txForm">
       <label>Дата
         <span class="calendar-field">
+          <span id="dateLabel" class="calendar-label">Дата</span>
           <input id="date" type="date" required>
         </span>
       </label>
@@ -512,6 +530,17 @@ const monthNames = [
   "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
   "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
 ];
+
+function updateCalendarLabels() {
+  const [year, month] = $("month").value.split("-");
+  $("monthLabel").textContent = year && month
+    ? `${monthNames[Number(month) - 1]} ${year}`
+    : "Оберіть місяць";
+  const date = $("date").value;
+  $("dateLabel").textContent = date
+    ? new Intl.DateTimeFormat("uk-UA").format(new Date(`${date}T00:00:00`))
+    : "Оберіть дату";
+}
 
 function emptyExpenses() {
   return Object.fromEntries(categories.map(category => [category, 0]));
@@ -717,6 +746,7 @@ function render() {
   syncLegacyPlan(plan);
 
   $("month").value = state.plan.month;
+  updateCalendarLabels();
   $("salary").value = plan.salary;
   $("days3333").value = plan.days3333;
   $("days1000").value = plan.days1000;
@@ -857,6 +887,7 @@ function exportExcel() {
   const update = event => {
     if (key === "month") {
       state.plan[key] = event.target.value;
+      updateCalendarLabels();
       currentPlan();
       persist();
       render();
@@ -877,6 +908,8 @@ function exportExcel() {
 
 $("type").onchange = fillCategories;
 $("date").value = new Date().toISOString().slice(0,10);
+updateCalendarLabels();
+$("date").addEventListener("input", updateCalendarLabels);
 
 function openPickerOnPointerDown(field) {
   const input = field.querySelector("input");
