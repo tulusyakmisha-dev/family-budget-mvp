@@ -552,7 +552,7 @@ function calculate() {
 
   const savings =
     plan.salary +
-    bonus * (1 - plan.taxRate) -
+    bonus * (1 - (state.plan.taxRate || 0.015)) -
     expenses;
 
   const actual = state.transactions
@@ -627,7 +627,7 @@ function render() {
   const plan = currentPlan();
   syncLegacyPlan(plan);
 
-  $("month").value = plan.month;
+  $("month").value = state.plan.month;
   $("salary").value = plan.salary;
   $("days3333").value = plan.days3333;
   $("days1000").value = plan.days1000;
