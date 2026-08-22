@@ -532,6 +532,13 @@ const money = number => new Intl.NumberFormat("uk-UA", {
   maximumFractionDigits:2
 }).format(number);
 
+const escapeHtml = value => String(value ?? "")
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;");
+
 const monthNames = [
   "Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень",
   "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"
@@ -582,6 +589,8 @@ function syncLegacyPlan(plan) {
   state.plan.expenses = plan.expenses;
 }
 
+let saveQueue = Promise.resolve();
+
 async function save() {
   localStorage.setItem("family-budget", JSON.stringify(state));
 
@@ -593,7 +602,8 @@ async function save() {
 }
 
 function persist() {
-  save().catch(error => {
+  saveQueue = saveQueue.catch(() => {}).then(() => save());
+  return saveQueue.catch(error => {
     showNotice(`Помилка збереження в Supabase: ${error.message}`, true);
   });
 }
@@ -612,7 +622,7 @@ async function loadState(attempt = 0) {
       localStorage.setItem("family-budget", JSON.stringify(state));
       render();
     } else {
-      await save();
+      await persist();
     }
   } catch (error) {
     if (attempt < 2) {
@@ -701,14 +711,14 @@ function calculate() {
 
   let angle = 0;
 
-  const parts = active.map(item => {
+  const parts = expenses > 0 ? active.map(item => {
     const start = angle;
     angle += item.value / expenses * 360;
     return `${colors[item.index]} ${start}deg ${angle}deg`;
-  });
+  }) : [];
 
   $("donut").style.background =
-    `conic-gradient(${parts.join(",")})`;
+    parts.length ? `conic-gradient(${parts.join(",")})` : "transparent";
 
   $("legend").innerHTML = active.map(item => `
     <span>
@@ -724,9 +734,9 @@ function renderTransactions() {
     .map(item => `
       <div class="transaction">
         <span>
-          <b>${item.category}</b>
-          <small>${item.date} · ${item.member}</small>
-          ${item.note ? `<em class="transaction-note">${item.note}</em>` : ""}
+          <b>${escapeHtml(item.category)}</b>
+          <small>${escapeHtml(item.date)} · ${escapeHtml(item.member)}</small>
+          ${item.note ? `<em class="transaction-note">${escapeHtml(item.note)}</em>` : ""}
         </span>
 
         <strong class="${item.type}">
@@ -961,9 +971,10 @@ async function exportExcel() {
       if (address[0] === "!") return;
       sheet[address].s = {
         font:{ name:"Aptos", sz:11, color:{ rgb:"172033" } },
+        fill:{ fgColor:{ rgb:address.match(/\d+/)[0] % 2 === 0 ? "F1F7F9" : "FFFFFF" } },
         alignment:{ vertical:"center" }
       };
-      if (address[0] >= "E" && address[0] <= "E") {
+      if (address.startsWith("E")) {
         sheet[address].z = '#,##0.00 "грн"';
       }
     });
@@ -1115,7 +1126,7 @@ $("sync").onclick = async () => {
   button.disabled = true;
   button.textContent = "Збереження...";
   try {
-    await save();
+    await persist();
     showNotice("Дані успішно збережено в Supabase.");
   } catch (error) {
     showNotice(`Помилка збереження в Supabase: ${error.message}`, true);
