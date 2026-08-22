@@ -349,7 +349,7 @@ p { color:var(--muted);margin:0 }
   <div class="file-actions">
     <button id="sync" class="primary">☁ Зберегти</button>
     <button id="importExcel" type="button">Імпорт Excel</button>
-    <button id="exportExcel" type="button">Експорт Excel</button>
+    <button id="exportExcel" type="button">Оновити Excel-звіт</button>
     <input id="excelFile" type="file" accept=".xlsx,.xls" hidden>
   </div>
 </header>
@@ -868,10 +868,15 @@ function exportExcel() {
     operationHeader,
     ...operationRows
   ];
-  const report = [[
-    "Місяць", "Зарплата", "Дні × 3 333", "Дні × 1 000",
-    ...categories, "Розхідні витрати", "Витрати разом", "Заощадження"
-  ]];
+  const report = [
+    ["Звіт сформовано вебдодатком", new Date().toLocaleString("uk-UA")],
+    ["Зміна днів на сайті автоматично потрапляє в цей звіт при експорті"],
+    [],
+    [
+      "Місяць", "Зарплата", "Дні × 3 333", "Дні × 1 000",
+      ...categories, "Розхідні витрати", "Витрати разом", "Заощадження"
+    ]
+  ];
   monthNames.forEach((monthName, index) => {
     const month = `2026-${String(index + 1).padStart(2, "0")}`;
     const plan = state.plan.months?.[month] || {
@@ -884,10 +889,12 @@ function exportExcel() {
       .reduce((sum, item) => sum + item.amount, 0);
     const total = fixedTotal + variableTotal;
     const bonus = plan.days3333 * 3333 + plan.days1000 * 1000;
+    const rowNumber = report.length + 1;
     report.push([
       monthName, plan.salary, plan.days3333, plan.days1000,
-      ...expenses, variableTotal, total,
-      plan.salary + bonus * 0.985 - total
+      ...expenses, variableTotal,
+      { f:`SUM(E${rowNumber}:K${rowNumber})+L${rowNumber}` },
+      { f:`B${rowNumber}+C${rowNumber}*3333+D${rowNumber}*1000-(C${rowNumber}*3333+D${rowNumber}*1000)*1.5%-M${rowNumber}` }
     ]);
   });
 
@@ -900,7 +907,7 @@ function exportExcel() {
   );
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(report), "Звіт 2026");
   XLSX.writeFile(workbook, `Витрати-${state.plan.month.slice(0,4)}.xlsx`);
-  showNotice("Дані бази експортовано в Excel.");
+  showNotice("Excel-звіт оновлено актуальними даними із сайту.");
 }
 
 [
