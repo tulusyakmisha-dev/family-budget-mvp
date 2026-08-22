@@ -875,7 +875,7 @@ async function exportExcel() {
     ["Зміна днів на сайті автоматично потрапляє в цей звіт при експорті"],
     [],
     [
-      "Місяць", "Зарплата", "Дні × 3 333", "Дні × 1 000",
+      "Місяць", "Зарплата", "Дні × 3 333", "Дні × 1 000", "Премія",
       ...categories, "Розхідні витрати", "Витрати разом", "Заощадження"
     ]
   ];
@@ -885,28 +885,26 @@ async function exportExcel() {
       salary:0, days3333:0, days1000:0, expenses:emptyExpenses()
     };
     const expenses = categories.map(category => plan.expenses[category] || 0);
-    const fixedTotal = expenses.reduce((sum, value) => sum + value, 0);
     const variableTotal = state.transactions
       .filter(item => item.type === "expense" && item.date.startsWith(month))
       .reduce((sum, item) => sum + item.amount, 0);
-    const total = fixedTotal + variableTotal;
-    const bonus = plan.days3333 * 3333 + plan.days1000 * 1000;
     const rowNumber = report.length + 1;
     report.push([
       monthName, plan.salary, plan.days3333, plan.days1000,
+      { f:`C${rowNumber}*3333+D${rowNumber}*1000` },
       ...expenses, variableTotal,
-      { f:`SUM(E${rowNumber}:K${rowNumber})+L${rowNumber}` },
-      { f:`B${rowNumber}+C${rowNumber}*3333+D${rowNumber}*1000-(C${rowNumber}*3333+D${rowNumber}*1000)*1.5%-M${rowNumber}` }
+      { f:`SUM(F${rowNumber}:L${rowNumber})+M${rowNumber}` },
+      { f:`B${rowNumber}+E${rowNumber}-E${rowNumber}*1.5%-N${rowNumber}` }
     ]);
   });
 
   const reportSheet = XLSX.utils.aoa_to_sheet(report);
   const reportColumnWidths = [
-    16, 15, 14, 14, ...categories.map(() => 15), 18, 18, 18
+    16, 15, 14, 14, 15, ...categories.map(() => 15), 18, 18, 18
   ];
   reportSheet["!cols"] = reportColumnWidths.map(width => ({ width }));
   reportSheet["!freeze"] = { xSplit:0, ySplit:4 };
-  reportSheet["!autofilter"] = { ref:`A4:N${report.length}` };
+  reportSheet["!autofilter"] = { ref:`A4:O${report.length}` };
 
   const reportBaseStyle = {
     font:{ name:"Aptos", sz:11, color:{ rgb:"172033" } },
@@ -925,7 +923,7 @@ async function exportExcel() {
       };
     }
   });
-  for (let column = 0; column < 14; column += 1) {
+  for (let column = 0; column < 15; column += 1) {
     const address = `${String.fromCharCode(65 + column)}4`;
     reportSheet[address].s = {
       font:{ name:"Aptos Display", sz:11, bold:true, color:{ rgb:"FFFFFF" } },
@@ -936,7 +934,7 @@ async function exportExcel() {
   }
   for (let row = 5; row <= report.length; row += 1) {
     const fill = row % 2 === 0 ? "F1F7F9" : "FFFFFF";
-    for (let column = 0; column < 14; column += 1) {
+    for (let column = 0; column < 15; column += 1) {
       const address = `${String.fromCharCode(65 + column)}${row}`;
       const cell = reportSheet[address];
       if (!cell) continue;
@@ -946,18 +944,59 @@ async function exportExcel() {
         alignment:{ horizontal:column === 0 ? "left" : "right", vertical:"center" }
       };
       if (column >= 1) cell.z = '#,##0.00 "грн"';
-      if (column === 12 || column === 13) {
+      if (column === 13 || column === 14) {
         cell.s.font = { name:"Aptos", sz:11, bold:true, color:{ rgb:"0E5B78" } };
       }
     }
   }
 
+  function styleOperationsSheet(sheet, headerRow, lastRow, titleRow = 0) {
+    sheet["!cols"] = [14, 14, 14, 16, 14, 16, 32]
+      .map(width => ({ width }));
+    sheet["!freeze"] = { xSplit:0, ySplit:headerRow };
+    sheet["!autofilter"] = {
+      ref:`A${headerRow}:G${Math.max(headerRow, lastRow)}`
+    };
+    Object.keys(sheet).forEach(address => {
+      if (address[0] === "!") return;
+      sheet[address].s = {
+        font:{ name:"Aptos", sz:11, color:{ rgb:"172033" } },
+        alignment:{ vertical:"center" }
+      };
+      if (address[0] >= "E" && address[0] <= "E") {
+        sheet[address].z = '#,##0.00 "грн"';
+      }
+    });
+    for (let column = 0; column < 7; column += 1) {
+      const address = `${String.fromCharCode(65 + column)}${headerRow}`;
+      const cell = sheet[address];
+      if (!cell) continue;
+      cell.s = {
+        font:{ name:"Aptos Display", sz:11, bold:true, color:{ rgb:"FFFFFF" } },
+        fill:{ fgColor:{ rgb:"1769A8" } },
+        alignment:{ horizontal:"center", vertical:"center", wrapText:true },
+        border:{ bottom:{ style:"medium", color:{ rgb:"0E4E7A" } } }
+      };
+    }
+    if (titleRow && sheet[`A${titleRow}`]) {
+      sheet[`A${titleRow}`].s = {
+        font:{ name:"Aptos Display", sz:14, bold:true, color:{ rgb:"0E5B78" } },
+        fill:{ fgColor:{ rgb:"E8F2F6" } }
+      };
+    }
+  }
+
+  const latestSheet = XLSX.utils.aoa_to_sheet(latestOperations);
+  const archiveSheet = XLSX.utils.aoa_to_sheet(archivedOperations);
+  styleOperationsSheet(latestSheet, 1, latestOperations.length);
+  styleOperationsSheet(archiveSheet, 3, archivedOperations.length, 1);
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
-    workbook, XLSX.utils.aoa_to_sheet(latestOperations), "Останні операції"
+    workbook, latestSheet, "Останні операції"
   );
   XLSX.utils.book_append_sheet(
-    workbook, XLSX.utils.aoa_to_sheet(archivedOperations), "Архів операцій"
+    workbook, archiveSheet, "Архів операцій"
   );
   XLSX.utils.book_append_sheet(workbook, reportSheet, "Звіт 2026");
   if (window.showOpenFilePicker) {
