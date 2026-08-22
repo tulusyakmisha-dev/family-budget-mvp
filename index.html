@@ -467,7 +467,7 @@ p { color:var(--muted);margin:0 }
 </section>
 </main>
 
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
@@ -898,6 +898,58 @@ function exportExcel() {
     ]);
   });
 
+  const reportSheet = XLSX.utils.aoa_to_sheet(report);
+  const reportColumnWidths = [
+    16, 15, 14, 14, ...categories.map(() => 15), 18, 18, 18
+  ];
+  reportSheet["!cols"] = reportColumnWidths.map(width => ({ width }));
+  reportSheet["!freeze"] = { xSplit:0, ySplit:4 };
+  reportSheet["!autofilter"] = { ref:`A4:N${report.length}` };
+
+  const reportBaseStyle = {
+    font:{ name:"Aptos", sz:11, color:{ rgb:"172033" } },
+    alignment:{ vertical:"center" }
+  };
+  Object.keys(reportSheet).forEach(address => {
+    if (address[0] === "!") return;
+    reportSheet[address].s = { ...reportBaseStyle };
+  });
+  ["A1", "A2"].forEach(address => {
+    if (reportSheet[address]) {
+      reportSheet[address].s = {
+        font:{ name:"Aptos", sz:11, bold:true, color:{ rgb:"31546F" } },
+        fill:{ fgColor:{ rgb:"E8F2F6" } },
+        alignment:{ vertical:"center" }
+      };
+    }
+  });
+  for (let column = 0; column < 14; column += 1) {
+    const address = `${String.fromCharCode(65 + column)}4`;
+    reportSheet[address].s = {
+      font:{ name:"Aptos Display", sz:11, bold:true, color:{ rgb:"FFFFFF" } },
+      fill:{ fgColor:{ rgb:"1769A8" } },
+      alignment:{ horizontal:"center", vertical:"center", wrapText:true },
+      border:{ bottom:{ style:"medium", color:{ rgb:"0E4E7A" } } }
+    };
+  }
+  for (let row = 5; row <= report.length; row += 1) {
+    const fill = row % 2 === 0 ? "F1F7F9" : "FFFFFF";
+    for (let column = 0; column < 14; column += 1) {
+      const address = `${String.fromCharCode(65 + column)}${row}`;
+      const cell = reportSheet[address];
+      if (!cell) continue;
+      cell.s = {
+        ...reportBaseStyle,
+        fill:{ fgColor:{ rgb:fill } },
+        alignment:{ horizontal:column === 0 ? "left" : "right", vertical:"center" }
+      };
+      if (column >= 1) cell.z = '#,##0.00 "грн"';
+      if (column === 12 || column === 13) {
+        cell.s.font = { name:"Aptos", sz:11, bold:true, color:{ rgb:"0E5B78" } };
+      }
+    }
+  }
+
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
     workbook, XLSX.utils.aoa_to_sheet(latestOperations), "Останні операції"
@@ -905,7 +957,7 @@ function exportExcel() {
   XLSX.utils.book_append_sheet(
     workbook, XLSX.utils.aoa_to_sheet(archivedOperations), "Архів операцій"
   );
-  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(report), "Звіт 2026");
+  XLSX.utils.book_append_sheet(workbook, reportSheet, "Звіт 2026");
   XLSX.writeFile(workbook, `Витрати-${state.plan.month.slice(0,4)}.xlsx`);
   showNotice("Excel-звіт оновлено актуальними даними із сайту.");
 }
