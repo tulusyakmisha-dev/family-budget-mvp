@@ -93,7 +93,7 @@ p { color:var(--muted);margin:0 }
   display:flex;
   justify-content:space-between;
 }
-.panel-title input { width:145px }
+.panel-title select { width:145px }
 .income-inputs {
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -281,7 +281,7 @@ p { color:var(--muted);margin:0 }
         <h2>План на місяць</h2>
         <p>Розрахунки відповідають Excel</p>
       </div>
-      <input id="month" type="month">
+      <select id="month" aria-label="Місяць"></select>
     </div>
 
     <div class="income-inputs">
@@ -434,6 +434,7 @@ function emptyExpenses() {
 }
 
 function currentPlan() {
+  if (!state.plan.month) state.plan.month = "2026-08";
   if (!state.plan.months) {
     state.plan.months = {
       [state.plan.month]: {
@@ -511,6 +512,13 @@ function fillCategories() {
   $("category").innerHTML = list
     .map(item => `<option>${item}</option>`)
     .join("");
+}
+
+function fillMonths() {
+  $("month").innerHTML = monthNames.map((name, index) => {
+    const value = `2026-${String(index + 1).padStart(2, "0")}`;
+    return `<option value="${value}">${name} 2026</option>`;
+  }).join("");
 }
 
 function syncDayInputs(changedId) {
@@ -765,7 +773,7 @@ function exportExcel() {
   ["days3333","days3333"],
   ["days1000","days1000"]
 ].forEach(([id,key]) => {
-  $(id).oninput = event => {
+  const update = event => {
     if (key === "month") {
       state.plan[key] = event.target.value;
       currentPlan();
@@ -782,6 +790,8 @@ function exportExcel() {
     persist();
     calculate();
   };
+  $(id).oninput = update;
+  if (key === "month") $(id).onchange = update;
 });
 
 $("type").onchange = fillCategories;
@@ -836,6 +846,7 @@ $("sync").onclick = async () => {
   }
 };
 
+fillMonths();
 fillCategories();
 render();
 loadState().catch(error => {
