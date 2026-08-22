@@ -28,6 +28,15 @@ header {
   justify-content:space-between;
   margin-bottom:26px;
 }
+.file-actions { display:flex;gap:8px;align-items:center }
+.file-actions button {
+  border:1px solid var(--line);
+  background:white;
+  color:var(--ink);
+  border-radius:10px;
+  padding:10px 12px;
+  cursor:pointer;
+}
 h1 { font-size:36px;margin:4px 0 }
 h2 { font-size:20px;margin:0 0 4px }
 h3 { font-size:14px;margin:25px 0 12px }
@@ -221,6 +230,8 @@ p { color:var(--muted);margin:0 }
     flex-direction:column;
   }
   header .primary { width:100% }
+  .file-actions { width:100% }
+  .file-actions button { flex:1 }
 }
 </style>
 </head>
@@ -233,7 +244,12 @@ p { color:var(--muted);margin:0 }
     <h1>Бюджет родини</h1>
     <p>Планування доходів, витрат і заощаджень.</p>
   </div>
-  <button id="sync" class="primary">☁ Зберегти</button>
+  <div class="file-actions">
+    <button id="sync" class="primary">☁ Зберегти</button>
+    <button id="importExcel" type="button">Імпорт Excel</button>
+    <button id="exportExcel" type="button">Експорт Excel</button>
+    <input id="excelFile" type="file" accept=".xlsx,.xls" hidden>
+  </div>
 </header>
 
 <div id="notice" hidden></div>
@@ -343,6 +359,9 @@ p { color:var(--muted);margin:0 }
 </section>
 </main>
 
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
 const categories = [
   "Квартира","Продукти","Проїзд","Підписки",
@@ -387,6 +406,13 @@ const initial = {
   ]
 };
 
+const SUPABASE_URL = "https://rexwpiruhtlvwfjtxnvg.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ZJfmbAWPclNXhoUZq2bhWA_bZsX2Fj9";
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
+
 let state = JSON.parse(localStorage.getItem("family-budget") || "null")
   || structuredClone(initial);
 
@@ -398,8 +424,37 @@ const money = number => new Intl.NumberFormat("uk-UA", {
   maximumFractionDigits:2
 }).format(number);
 
-function save() {
+async function save() {
   localStorage.setItem("family-budget", JSON.stringify(state));
+
+  const { error } = await supabaseClient
+    .from("budget_state")
+    .upsert({ id:"family", state, updated_at:new Date().toISOString() });
+
+  if (error) throw error;
+}
+
+function persist() {
+  save().catch(error => {
+    showNotice(`Помилка збереження в Supabase: ${error.message}`, true);
+  });
+}
+
+async function loadState() {
+  const { data, error } = await supabaseClient
+    .from("budget_state")
+    .select("state")
+    .eq("id", "family")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (data?.state) {
+    state = data.state;
+    localStorage.setItem("family-budget", JSON.stringify(state));
+    render();
+  } else {
+    await save();
+  }
 }
 
 function fillCategories() {
@@ -511,7 +566,7 @@ function renderTransactions() {
       state.transactions = state.transactions
         .filter(item => item.id !== button.dataset.id);
 
-      save();
+      persist();
       render();
     };
   });
@@ -548,13 +603,94 @@ function render() {
       plan.expenses[input.dataset.expense] =
         Number(input.value) || 0;
 
-      save();
+      persist();
       calculate();
     };
   });
 
   calculate();
   renderTransactions();
+}
+
+const monthColumns = {
+  "01": "Січень", "02": "Лютий", "03": "Березень",
+  "04": "Квітень", "05": "Травень", "06": "Червень",
+  "07": "Липень", "08": "Серпень", "09": "Вересень",
+  "10": "Жовтень", "11": "Листопад", "12": "Грудень"
+};
+
+function showNotice(message, error = false) {
+  $("notice").hidden = false;
+  $("notice").textContent = message;
+  $("notice").style.background = error ? "#fee2e2" : "#e0f2fe";
+  $("notice").style.color = error ? "#991b1b" : "#075985";
+}
+
+async function importExcel(file) {
+  const workbook = XLSX.read(await file.arrayBuffer(), { type:"array" });
+  const rows = XLSX.utils.sheet_to_json(
+    workbook.Sheets[workbook.SheetNames[0]],
+    { header:1, defval:"" }
+  );
+  const headerIndex = rows.findIndex(row =>
+    row.some(value => String(value).trim() === "Місяць/перелік")
+  );
+
+  if (headerIndex < 0) {
+    throw new Error("Не знайдено таблицю помісячних витрат.");
+  }
+
+  const monthName = monthColumns[state.plan.month.slice(5)];
+  const header = rows[headerIndex];
+  const monthIndex = header.findIndex(value => value === monthName);
+  if (monthIndex < 0) {
+    throw new Error(`У файлі немає колонки «${monthName}».`);
+  }
+
+  const importedExpenses = {};
+  rows.slice(headerIndex + 1).forEach(row => {
+    const category = String(row[13] || "").trim();
+    if (categories.includes(category)) {
+      importedExpenses[category] = Number(row[monthIndex]) || 0;
+    }
+  });
+
+  const salaryRow = rows.find(row => Number(row[3]) > 0 && Number(row[5]) >= 0);
+  if (salaryRow) {
+    state.plan.salary = Number(salaryRow[3]) || state.plan.salary;
+    state.plan.days3333 = Number(salaryRow[5]) || 0;
+    state.plan.days1000 = Number(salaryRow[6]) || 0;
+  }
+  state.plan.expenses = { ...state.plan.expenses, ...importedExpenses };
+  persist();
+  render();
+  showNotice(`Excel імпортовано: ${Object.keys(importedExpenses).length} категорій за ${monthName}.`);
+}
+
+function exportExcel() {
+  const operations = [
+    ["ID", "Дата", "Тип", "Категорія", "Сума", "Учасник", "Коментар"],
+    ...state.transactions.map(item => [
+      item.id, item.date, item.type === "expense" ? "Витрата" : "Дохід",
+      item.category, item.amount, item.member, item.note || ""
+    ])
+  ];
+  const plan = [
+    ["Місяць", state.plan.month],
+    ["Зарплата", state.plan.salary],
+    ["Дні премії 3333", state.plan.days3333],
+    ["Дні премії 1000", state.plan.days1000],
+    [], ["Категорія", "Сума"]
+  ];
+  categories.forEach(category => plan.push([
+    category, state.plan.expenses[category] || 0
+  ]));
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(operations), "Операції");
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(plan), "План");
+  XLSX.writeFile(workbook, `сімейний-бюджет-${state.plan.month}.xlsx`);
+  showNotice("Дані бази експортовано в Excel.");
 }
 
 [
@@ -572,13 +708,27 @@ function render() {
       state.plan[key] = Number(event.target.value) || 0;
     }
 
-    save();
+    persist();
     calculate();
   };
 });
 
 $("type").onchange = fillCategories;
 $("date").value = new Date().toISOString().slice(0,10);
+
+$("importExcel").onclick = () => $("excelFile").click();
+$("excelFile").onchange = async event => {
+  const [file] = event.target.files;
+  if (!file) return;
+  try {
+    await importExcel(file);
+  } catch (error) {
+    showNotice(`Помилка імпорту: ${error.message}`, true);
+  } finally {
+    event.target.value = "";
+  }
+};
+$("exportExcel").onclick = exportExcel;
 
 $("txForm").onsubmit = event => {
   event.preventDefault();
@@ -596,19 +746,30 @@ $("txForm").onsubmit = event => {
   $("amount").value = "";
   $("note").value = "";
 
-  save();
+  persist();
   render();
 };
 
-$("sync").onclick = () => {
-  save();
-  $("notice").hidden = false;
-  $("notice").textContent =
-    "Дані успішно збережено у цьому браузері.";
+$("sync").onclick = async () => {
+  const button = $("sync");
+  button.disabled = true;
+  button.textContent = "Збереження...";
+  try {
+    await save();
+    showNotice("Дані успішно збережено в Supabase.");
+  } catch (error) {
+    showNotice(`Помилка збереження в Supabase: ${error.message}`, true);
+  } finally {
+    button.disabled = false;
+    button.textContent = "☁ Зберегти";
+  }
 };
 
 fillCategories();
 render();
+loadState().catch(error => {
+  showNotice(`Supabase недоступний: ${error.message}`, true);
+});
 </script>
 </body>
 </html>
