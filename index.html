@@ -146,6 +146,7 @@ p { color:var(--muted);margin:0 }
   justify-content:space-between;
 }
 .panel-title input { width:145px }
+.panel-title input[type="month"] { cursor:pointer }
 .income-inputs {
   display:grid;
   grid-template-columns:repeat(3,1fr);
@@ -854,6 +855,15 @@ function exportExcel() {
 
 $("type").onchange = fillCategories;
 $("date").value = new Date().toISOString().slice(0,10);
+
+$("month").addEventListener("pointerdown", event => {
+  const monthInput = $("month");
+  event.preventDefault();
+  monthInput.focus();
+  if (typeof monthInput.showPicker === "function") {
+    monthInput.showPicker();
+  }
+});
 
 $("importExcel").onclick = () => $("excelFile").click();
 $("excelFile").onchange = async event => {
