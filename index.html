@@ -18,13 +18,18 @@
 body {
   margin:0;
   background:
-    linear-gradient(125deg,#dcecf4 0%,#eef5f4 48%,#d7e6f6 100%);
+    linear-gradient(125deg,#cfe7f1 0%,#edf6f3 48%,#c9def2 100%);
   color:var(--ink);
   font-family:Inter,system-ui,sans-serif;
   min-height:100vh;
 }
 button,input,select { font:inherit }
-main { max-width:1220px;margin:auto;padding:38px 28px 70px }
+main {
+  max-width:1220px;
+  margin:auto;
+  padding:38px 28px 70px;
+  position:relative;
+}
 header {
   display:flex;
   align-items:center;
@@ -41,7 +46,12 @@ header {
   padding:10px 12px;
   cursor:pointer;
 }
-h1 { font-size:36px;margin:4px 0 }
+h1 {
+  font-size:42px;
+  line-height:1.05;
+  letter-spacing:0;
+  margin:4px 0;
+}
 h2 { font-size:20px;margin:0 0 4px }
 h3 { font-size:14px;margin:25px 0 12px }
 p { color:var(--muted);margin:0 }
@@ -50,6 +60,13 @@ p { color:var(--muted);margin:0 }
   color:var(--blue);
   font-weight:800;
   letter-spacing:1.5px;
+  box-shadow:0 5px 16px #244b6614, inset 0 1px #ffffff;
+  transition:transform .2s ease,background .2s ease,box-shadow .2s ease;
+}
+.file-actions button:hover {
+  background:#ffffffc4;
+  transform:translateY(-2px);
+  box-shadow:0 8px 20px #244b6624, inset 0 1px #ffffff;
 }
 .primary {
   border:0;
@@ -59,6 +76,12 @@ p { color:var(--muted);margin:0 }
   padding:12px 17px;
   font-weight:700;
   cursor:pointer;
+  box-shadow:0 8px 18px #1769d13d;
+  transition:transform .2s ease,box-shadow .2s ease;
+}
+.primary:hover {
+  transform:translateY(-2px);
+  box-shadow:0 11px 24px #1769d14d;
 }
 .cards {
   display:grid;
@@ -67,17 +90,30 @@ p { color:var(--muted);margin:0 }
   margin-bottom:18px;
 }
 .cards article,.panel {
-  background:var(--glass);
-  border:1px solid var(--line);
+  background:#ffffff78;
+  border:1px solid #ffffffd9;
   border-radius:18px;
   padding:22px;
   box-shadow:0 14px 35px #244b6618, inset 0 1px #ffffffb8;
-  backdrop-filter:blur(18px);
+  box-shadow:0 18px 40px #244b6626, inset 0 1px #ffffffd9;
+  backdrop-filter:blur(22px) saturate(125%);
 }
 .cards article {
   display:flex;
   flex-direction:column;
   gap:6px;
+  position:relative;
+  overflow:hidden;
+}
+.cards article:not(.accent)::after {
+  content:"";
+  position:absolute;
+  top:0;
+  left:22px;
+  right:22px;
+  height:3px;
+  background:linear-gradient(90deg,#1769d1,#16a6a0);
+  opacity:.75;
 }
 .cards small { color:var(--muted);font-weight:650 }
 .cards strong { font-size:27px }
