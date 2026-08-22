@@ -440,20 +440,28 @@ function persist() {
   });
 }
 
-async function loadState() {
-  const { data, error } = await supabaseClient
-    .from("budget_state")
-    .select("state")
-    .eq("id", "family")
-    .maybeSingle();
+async function loadState(attempt = 0) {
+  try {
+    const { data, error } = await supabaseClient
+      .from("budget_state")
+      .select("state")
+      .eq("id", "family")
+      .maybeSingle();
 
-  if (error) throw error;
-  if (data?.state) {
-    state = data.state;
-    localStorage.setItem("family-budget", JSON.stringify(state));
-    render();
-  } else {
-    await save();
+    if (error) throw error;
+    if (data?.state) {
+      state = data.state;
+      localStorage.setItem("family-budget", JSON.stringify(state));
+      render();
+    } else {
+      await save();
+    }
+  } catch (error) {
+    if (attempt < 2) {
+      await new Promise(resolve => setTimeout(resolve, 800 * (attempt + 1)));
+      return loadState(attempt + 1);
+    }
+    throw error;
   }
 }
 
